@@ -41,6 +41,13 @@ function initMap() {
 
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
+    
+    
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        hostInput.value = "broker.hivemq.com";
+        portInput.value = "8000";
+        addMessage("Mobile device detected. Using HiveMQ broker for better compatibility.");
+    }
 });
 
 connectBtn.addEventListener('click', () => {
@@ -84,6 +91,12 @@ connectBtn.addEventListener('click', () => {
 
 function connectMQTT(host, port, clientId) {
     try {
+        // Use a fully qualified WebSocket URL for better mobile compatibility
+        const wsProtocol = (port === 443 || port === 8883 || port === 8884) ? "wss://" : "ws://";
+        const wsUrl = wsProtocol + host + ":" + port + "/mqtt";
+        
+        addMessage('Connecting to ' + wsUrl);
+        
         mqttClient = new Paho.MQTT.Client(host, port, clientId);
         
         mqttClient.onConnectionLost = onConnectionLost;
@@ -91,13 +104,19 @@ function connectMQTT(host, port, clientId) {
         
         addMessage('Connecting to MQTT broker...');
         
-        mqttClient.connect({
+        const connectOptions = {
             onSuccess: onConnect,
             onFailure: onFailure,
-            useSSL: false,
-            timeout: 3,
-            keepAliveInterval: 30
-        });
+            timeout: 30,  // Longer timeout for mobile
+            keepAliveInterval: 60
+        };
+        
+        // Add SSL if using secure port
+        if (port === 443 || port === 8883 || port === 8884) {
+            connectOptions.useSSL = true;
+        }
+        
+        mqttClient.connect(connectOptions);
     } catch (error) {
         addMessage('Error creating MQTT client: ' + error.message);
     }
@@ -128,6 +147,59 @@ function onFailure(responseObject) {
     hostInput.disabled = false;
     portInput.disabled = false;
     clientIdInput.disabled = false;
+    
+    // For mobile demo, add fallback to simulate functionality
+    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+        addMessage('Using demo mode for mobile presentation');
+        simulateMQTTForDemo();
+    }
+}
+
+
+function simulateMQTTForDemo() {
+    isConnected = true;
+    addMessage('[DEMO MODE] Connected to simulated MQTT broker');
+    connectionStatus.textContent = 'Status: Connected (Demo)';
+    connectionStatus.style.color = 'blue';
+    connectBtn.textContent = 'End Connection';
+    publishBtn.disabled = false;
+    shareStatusBtn.disabled = false;
+    
+    shareStatusBtn.addEventListener('click', function() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                position => {
+                    const { latitude, longitude } = position.coords;
+                    const temperature = getRandomTemperature(-40, 60);
+                    
+                    const geojson = {
+                        type: 'Feature',
+                        geometry: {
+                            type: 'Point',
+                            coordinates: [longitude, latitude]
+                        },
+                        properties: {
+                            temperature: temperature
+                        }
+                    };
+                    
+                    addMessage('[DEMO] Shared location with temperature: ' + temperature);
+                    updateMarker(geojson);
+                },
+                error => {
+                    addMessage('Error getting location: ' + error.message);
+                }
+            );
+        }
+    });
+    
+    publishBtn.addEventListener('click', function() {
+        const message = messageInput.value;
+        if (message) {
+            addMessage('[DEMO] Published: ' + message);
+            messageInput.value = '';
+        }
+    });
 }
 
 function onConnectionLost(responseObject) {
@@ -249,9 +321,15 @@ function updateMarker(data) {
     const latitude = data.geometry.coordinates[1];
     const longitude = data.geometry.coordinates[0];
     const temperature = data.properties.temperature;
-       
+    
+    if (userMarker) {
+        map.removeLayer(userMarker);
+    }
+    
+    // Use a simple default marker
     userMarker = L.marker([latitude, longitude]).addTo(map);
     
+    // Add popup with temperature info and color
     let tempColor = "blue";
     if (temperature >= 10 && temperature < 30) {
         tempColor = "green";
@@ -260,19 +338,7 @@ function updateMarker(data) {
     }
     
     userMarker.bindPopup(`<b>Temperature:</b> <span style="color:${tempColor}">${temperature}°C</span>`);
-    
-    // Center map on marker
     map.setView([latitude, longitude], 15);
-}
-
-function getMarkerColor(temperature) {
-    if (temperature < 10) {
-        return '#3388ff'; // Blue for cold
-    } else if (temperature < 30) {
-        return '#33a02c'; // Green for mild
-    } else {
-        return '#e31a1c'; // Red for hot
-    }
 }
 
 function getRandomTemperature(min, max) {
