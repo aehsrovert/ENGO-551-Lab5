@@ -42,12 +42,9 @@ function initMap() {
 document.addEventListener('DOMContentLoaded', () => {
     initMap();
     
-    
-    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        hostInput.value = "broker.hivemq.com";
-        portInput.value = "8000";
-        addMessage("Mobile device detected. Using HiveMQ broker for better compatibility.");
-    }
+    // Set default to HiveMQ which works better on mobile
+    hostInput.value = "broker.hivemq.com";
+    portInput.value = "8000";
 });
 
 connectBtn.addEventListener('click', () => {
@@ -91,12 +88,6 @@ connectBtn.addEventListener('click', () => {
 
 function connectMQTT(host, port, clientId) {
     try {
-        // Use a fully qualified WebSocket URL for better mobile compatibility
-        const wsProtocol = (port === 443 || port === 8883 || port === 8884) ? "wss://" : "ws://";
-        const wsUrl = wsProtocol + host + ":" + port + "/mqtt";
-        
-        addMessage('Connecting to ' + wsUrl);
-        
         mqttClient = new Paho.MQTT.Client(host, port, clientId);
         
         mqttClient.onConnectionLost = onConnectionLost;
@@ -107,12 +98,11 @@ function connectMQTT(host, port, clientId) {
         const connectOptions = {
             onSuccess: onConnect,
             onFailure: onFailure,
-            timeout: 30,  // Longer timeout for mobile
+            timeout: 30,
             keepAliveInterval: 60
         };
         
-        // Add SSL if using secure port
-        if (port === 443 || port === 8883 || port === 8884) {
+        if (port === 8883 || port === 8884 || port === 443) {
             connectOptions.useSSL = true;
         }
         
@@ -147,59 +137,6 @@ function onFailure(responseObject) {
     hostInput.disabled = false;
     portInput.disabled = false;
     clientIdInput.disabled = false;
-    
-    // For mobile demo, add fallback to simulate functionality
-    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        addMessage('Using demo mode for mobile presentation');
-        simulateMQTTForDemo();
-    }
-}
-
-
-function simulateMQTTForDemo() {
-    isConnected = true;
-    addMessage('[DEMO MODE] Connected to simulated MQTT broker');
-    connectionStatus.textContent = 'Status: Connected (Demo)';
-    connectionStatus.style.color = 'blue';
-    connectBtn.textContent = 'End Connection';
-    publishBtn.disabled = false;
-    shareStatusBtn.disabled = false;
-    
-    shareStatusBtn.addEventListener('click', function() {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                position => {
-                    const { latitude, longitude } = position.coords;
-                    const temperature = getRandomTemperature(-40, 60);
-                    
-                    const geojson = {
-                        type: 'Feature',
-                        geometry: {
-                            type: 'Point',
-                            coordinates: [longitude, latitude]
-                        },
-                        properties: {
-                            temperature: temperature
-                        }
-                    };
-                    
-                    addMessage('[DEMO] Shared location with temperature: ' + temperature);
-                    updateMarker(geojson);
-                },
-                error => {
-                    addMessage('Error getting location: ' + error.message);
-                }
-            );
-        }
-    });
-    
-    publishBtn.addEventListener('click', function() {
-        const message = messageInput.value;
-        if (message) {
-            addMessage('[DEMO] Published: ' + message);
-            messageInput.value = '';
-        }
-    });
 }
 
 function onConnectionLost(responseObject) {
@@ -213,11 +150,21 @@ function onConnectionLost(responseObject) {
         setTimeout(() => {
             if (!mqttClient.isConnected() && isConnected) {
                 addMessage('Attempting to reconnect...');
-                mqttClient.connect({
+                
+                const connectOptions = {
                     onSuccess: onConnect,
                     onFailure: onFailure,
-                    useSSL: false
-                });
+                    timeout: 30,
+                    keepAliveInterval: 60
+                };
+                
+                if (parseInt(portInput.value) === 8883 || 
+                    parseInt(portInput.value) === 8884 || 
+                    parseInt(portInput.value) === 443) {
+                    connectOptions.useSSL = true;
+                }
+                
+                mqttClient.connect(connectOptions);
             }
         }, 5000);
     }
@@ -278,9 +225,10 @@ shareStatusBtn.addEventListener('click', () => {
                 };
                 
                 const topic = topicInput.value;
-                publishMessage(topic, JSON.stringify(geojson));
+                const geojsonStr = JSON.stringify(geojson);
+                publishMessage(topic, geojsonStr);
                 
-                // Also update marker directly
+                // Also update marker directly for immediate feedback
                 updateMarker(geojson);
             },
             error => {
