@@ -1,75 +1,78 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ENGO551 - IoT Geoweb App</title>
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="style.css">
-    
-    <!-- Leaflet JavaScript -->
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    
-    <!-- MQTT over WebSockets JavaScript client -->
+    <title>Lab 5 - Websockets</title> 
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/OverlappingMarkerSpiderfier-Leaflet/0.2.6/oms.min.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css"/>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js" type="text/javascript"></script>
+    <style>
+        #map { height: 100%; width: 100%}
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+        /* display: none; <- Crashes Chrome on hover */
+            -webkit-appearance: none;
+            margin: 0; /* <-- Apparently some margin are still there even though it's hidden */
+        }
+
+        input[type=number] {
+            -moz-appearance:textfield; /* Firefox */
+        }
+    </style>
+
 </head>
 <body>
-    <div class="container">
-        <h1>IoT GeoWeb Application</h1>
-        
-        <!-- Connection Form -->
-        <div class="connection-form">
-            <h2>MQTT Connection</h2>
-            <div class="form-group">
-                <label for="host">Host:</label>
-                <input type="text" id="host" value="test.mosquitto.org">
-            </div>
-            <div class="form-group">
-                <label for="port">Port:</label>
-                <input type="number" id="port" value="8080">
-            </div>
-            <div class="form-group">
-                <label for="clientId">Client ID:</label>
-                <input type="text" id="clientId" value="web_client_">
-            </div>
-            <div class="form-group">
-                <button id="connectBtn" class="btn">Start Connection</button>
-            </div>
-            <div id="connectionStatus">Status: Disconnected</div>
+
+    <div class="row">
+        <!--- Map container -->
+        <div class="col-10 min-vh-100">
+          <div id="map"></div>
         </div>
-        
-        <!-- Message Publishing -->
-        <div class="messaging-section">
-            <h2>Publish Messages</h2>
+        <div class="col-2">
+            <!--- Side panel containing user options-->
+            <h5> Connect To MQTT Over WebSockets </h5>
+            <p id="status" class="text-danger text-success"></p>
             <div class="form-group">
-                <label for="topic">Topic:</label>
-                <input type="text" id="topic" placeholder="ENGO551/your_name/my_temperature">
+                Host<br>
+                <input type="text" class="form-control" id="host" placeholder="e.g. test.mosquitto.org" value="">
+                Port <br>
+                <input type="number" class="form-control" id="port" placeholder="e.g. 8080" value=0>
+                <button id="connect" type="button" class="btn btn-primary">Connect</button>
             </div>
-            <div class="form-group">
-                <label for="message">Message:</label>
-                <input type="text" id="message" placeholder="Enter message to publish">
-            </div>
-            <div class="form-group">
-                <button id="publishBtn" class="btn" disabled>Publish Message</button>
-                <button id="shareStatusBtn" class="btn" disabled>Share My Status</button>
+            <br>
+            <br>
+            
+            <div id="message" class="form-group" hidden>
+                <h5> Share Status </h5>
+                <p id="shareStatus" class="text-danger text-success"></p>
+                <button id="share" type="button" class="btn btn-primary" hidden>Share My Status</button>
+                <br>
+                <h5> Send a Message</h5>
+                <p id="msgStatus" class="text-danger text-success"></p>
+                Topic
+                <input type="text" class="form-control" id="topic" placeholder="Your Topic" value="">
+                Message
+                <input type="text" class="form-control" id="msg" placeholder="Your Message" value="">
+                <button id="submitMessage" type="button" class="btn btn-primary click">Send Message</button>
             </div>
         </div>
+
         
-        <!-- Map Container -->
-        <div id="map"></div>
-        
-        <!-- Status Messages -->
-        <div class="status-messages">
-            <h3>Status Messages</h3>
-            <div id="messages"></div>
-        </div>
+
     </div>
     
-    <!-- Custom JavaScript -->
-    <script src="script.js"></script>
+    <script src="map.js"></script>
+    <script src="websocket.js"></script>
+    
+
 </body>
-</html>
